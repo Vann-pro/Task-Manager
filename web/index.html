@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal Task Manager</title>
+  <script>
+    // Terapkan tema sebelum render agar tidak berkedip.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('ptm.theme'); } catch (e) {}
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Personal Task Manager</h1>
+    <div class="topbar-actions">
+      <button id="btn-theme" class="btn ghost" type="button" aria-label="Ganti mode terang/gelap">Tema</button>
+      <button id="btn-export" class="btn ghost" type="button">Ekspor</button>
+      <button id="btn-import" class="btn ghost" type="button">Impor</button>
+      <button id="btn-add" class="btn primary" type="button">+ Tugas</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" role="alert" hidden></div>
+
+  <main>
+    <section id="stats" class="stats" aria-label="Statistik tugas"></section>
+
+    <section class="toolbar" aria-label="Filter dan pencarian">
+      <input id="f-search" type="search" placeholder="Cari judul tugas…" aria-label="Cari judul">
+      <select id="f-status" aria-label="Filter status">
+        <option value="all">Semua status</option>
+        <option value="todo">To Do</option>
+        <option value="inprogress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select id="f-priority" aria-label="Filter prioritas">
+        <option value="all">Semua prioritas</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select id="f-deadline" aria-label="Filter deadline">
+        <option value="all">Semua deadline</option>
+        <option value="overdue">Terlambat</option>
+        <option value="today">Hari ini</option>
+        <option value="week">7 hari ke depan</option>
+        <option value="none">Tanpa deadline</option>
+      </select>
+      <select id="f-sort" aria-label="Urutkan berdasarkan">
+        <option value="created">Urut: tanggal dibuat</option>
+        <option value="deadline">Urut: deadline</option>
+        <option value="priority">Urut: prioritas</option>
+      </select>
+      <button id="f-dir" class="btn ghost" type="button" aria-label="Arah pengurutan">Terbaru ↓</button>
+    </section>
+
+    <p id="result-info" class="muted"></p>
+    <section id="list" class="list" aria-live="polite"></section>
+    <p id="empty" class="empty" hidden></p>
+  </main>
+
+  <dialog id="dlg">
+    <form id="form" novalidate>
+      <h2 id="dlg-title">Tugas baru</h2>
+      <label>Judul
+        <input id="t-title" type="text" maxlength="200" required autocomplete="off">
+      </label>
+      <label>Deskripsi
+        <textarea id="t-desc" rows="3" maxlength="2000"></textarea>
+      </label>
+      <label>Deadline (opsional)
+        <input id="t-deadline" type="datetime-local">
+      </label>
+      <div class="row">
+        <label>Urgensi (1–5)
+          <select id="t-urgency"></select>
+        </label>
+        <label>Kepentingan (1–5)
+          <select id="t-importance"></select>
+        </label>
+      </div>
+      <label>Status
+        <select id="t-status">
+          <option value="todo">To Do</option>
+          <option value="inprogress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+      <div class="row">
+        <label>Mode prioritas
+          <select id="t-mode">
+            <option value="auto">Otomatis</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <label>Prioritas manual
+          <select id="t-manual">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+      </div>
+      <p id="form-error" class="form-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button id="t-cancel" class="btn ghost" type="button">Batal</button>
+        <button class="btn primary" type="submit">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <input id="file-input" type="file" accept="application/json,.json" hidden>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <!-- Hasil kompilasi C++ -> WebAssembly (dibuat oleh scripts/build.*). -->
+  <script src="wasm/ptm.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/wasm-bridge.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
