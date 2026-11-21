@@ -12,7 +12,7 @@ call emcc src/task.cpp src/priority.cpp src/json.cpp src/task_manager.cpp src/wa
   -std=c++17 -O2 -Wall ^
   -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME=createPTMModule -s ENVIRONMENT=web ^
   -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1 ^
-  -s "EXPORTED_FUNCTIONS=['_ptm_load','_ptm_add','_ptm_update','_ptm_delete','_ptm_get','_ptm_query','_ptm_stats','_ptm_state','_ptm_export','_ptm_upcoming','_ptm_calendar','_ptm_import']" ^
+  -s "EXPORTED_FUNCTIONS=['_ptm_load','_ptm_add','_ptm_update','_ptm_delete','_ptm_get','_ptm_query','_ptm_stats','_ptm_state','_ptm_export','_ptm_import']" ^
   -s "EXPORTED_RUNTIME_METHODS=['cwrap']" ^
   -o web/wasm/ptm.js
 if errorlevel 1 exit /b 1
