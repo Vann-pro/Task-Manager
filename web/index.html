@@ -13,12 +13,14 @@
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%E2%9C%85%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
     <h1>Personal Task Manager</h1>
     <div class="topbar-actions">
+      <button id="btn-notify" class="btn ghost" type="button">Aktifkan notifikasi</button>
       <button id="btn-theme" class="btn ghost" type="button" aria-label="Ganti mode terang/gelap">Tema</button>
       <button id="btn-export" class="btn ghost" type="button">Ekspor</button>
       <button id="btn-import" class="btn ghost" type="button">Impor</button>
@@ -28,9 +30,17 @@
 
   <div id="banner" class="banner" role="alert" hidden></div>
 
+  <div id="reminder" class="reminder" role="status" hidden></div>
+
   <main>
     <section id="stats" class="stats" aria-label="Statistik tugas"></section>
 
+    <div class="seg" role="group" aria-label="Pilih tampilan">
+      <button id="v-list" class="seg-btn active" type="button">Daftar</button>
+      <button id="v-cal" class="seg-btn" type="button">Kalender</button>
+    </div>
+
+    <div id="view-list">
     <section class="toolbar" aria-label="Filter dan pencarian">
       <input id="f-search" type="search" placeholder="Cari judul tugas…" aria-label="Cari judul">
       <select id="f-status" aria-label="Filter status">
@@ -63,6 +73,19 @@
     <p id="result-info" class="muted"></p>
     <section id="list" class="list" aria-live="polite"></section>
     <p id="empty" class="empty" hidden></p>
+    </div>
+
+    <div id="view-cal" hidden>
+      <div class="cal-head">
+        <button id="cal-prev" class="btn ghost" type="button" aria-label="Bulan sebelumnya">‹</button>
+        <h2 id="cal-title"></h2>
+        <button id="cal-next" class="btn ghost" type="button" aria-label="Bulan berikutnya">›</button>
+        <button id="cal-today" class="btn ghost" type="button">Hari ini</button>
+      </div>
+      <div id="cal-grid" class="cal-grid"></div>
+      <h3 id="cal-day-title" class="cal-day-title"></h3>
+      <div id="cal-day-list" class="list"></div>
+    </div>
   </main>
 
   <dialog id="dlg">

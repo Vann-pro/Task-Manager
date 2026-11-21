@@ -7,6 +7,13 @@
   var filters = { status: 'all', priority: 'all', deadline: 'all', search: '', sort: 'created', dir: 'desc' };
   var editingId = null;
   var toastTimer = null;
+  var view = 'list';
+  var calSel = null;
+  var nowD = new Date();
+  var cal = { y: nowD.getFullYear(), m: nowD.getMonth() + 1 };
+  var MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  var NOTIFY_KEY = 'ptm.notified.v1';
+  var REMIND_MS = 24 * 3600 * 1000;
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -102,8 +109,13 @@
 
   function render() {
     var now = Date.now();
-    var res = PTMCore.query(Object.assign({}, filters, dayBounds()), now);
     renderStats(PTMCore.stats(now));
+    if (view === 'cal') renderCalendar(now); else renderListView(now);
+    checkReminders(now);
+  }
+
+  function renderListView(now) {
+    var res = PTMCore.query(Object.assign({}, filters, dayBounds()), now);
     var list = $('#list');
     list.textContent = '';
     if (!res.ok) { toast(res.error, true); return; }
@@ -112,6 +124,114 @@
     var empty = $('#empty');
     empty.hidden = res.count > 0;
     empty.textContent = res.total === 0 ? 'Belum ada tugas. Tekan "+ Tugas" untuk memulai.' : 'Tidak ada tugas yang cocok dengan filter.';
+  }
+
+  // ---------- Pengingat & notifikasi ----------
+  function renderReminder(r) {
+    var box = $('#reminder');
+    box.textContent = '';
+    if (!r.ok || r.count === 0) { box.hidden = true; return; }
+    box.hidden = false;
+    box.appendChild(el('strong', '', r.count + ' tugas jatuh tempo dalam 24 jam'));
+    var ul = el('ul');
+    r.tasks.slice(0, 5).forEach(function (t) { ul.appendChild(el('li', '', t.title + ' · ' + fmt(t.deadline))); });
+    if (r.count > 5) ul.appendChild(el('li', '', '…dan ' + (r.count - 5) + ' lainnya'));
+    box.appendChild(ul);
+  }
+  function notifiedMap() {
+    try { return JSON.parse(localStorage.getItem(NOTIFY_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function showNotif(title, body, tag) {
+    var opts = { body: body, tag: tag };
+    var fallback = function () { try { new Notification(title, opts); } catch (e) {} };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (reg) return reg.showNotification(title, opts);
+        fallback();
+      }).catch(fallback);
+    } else fallback();
+  }
+  function checkReminders(now) {
+    var r = PTMCore.upcoming(now, REMIND_MS);
+    renderReminder(r);
+    if (!r.ok || !('Notification' in window) || Notification.permission !== 'granted') return;
+    var m = notifiedMap(), changed = false;
+    Object.keys(m).forEach(function (k) { if (now - m[k] > 14 * 24 * 3600 * 1000) { delete m[k]; changed = true; } });
+    r.tasks.forEach(function (t) {
+      var k = t.id + ':' + t.deadline;
+      if (m[k]) return;
+      m[k] = now; changed = true;
+      showNotif('Deadline dekat: ' + t.title, 'Jatuh tempo ' + fmt(t.deadline), 'ptm-' + t.id);
+    });
+    if (changed) { try { localStorage.setItem(NOTIFY_KEY, JSON.stringify(m)); } catch (e) {} }
+  }
+  function syncNotifyBtn() {
+    var b = $('#btn-notify');
+    if (!('Notification' in window)) { b.hidden = true; return; }
+    var p = Notification.permission;
+    b.textContent = p === 'granted' ? 'Notifikasi: aktif' : (p === 'denied' ? 'Notifikasi: diblokir' : 'Aktifkan notifikasi');
+  }
+  function onNotifyClick() {
+    if (Notification.permission === 'granted') { toast('Notifikasi sudah aktif. Muncul saat aplikasi ini terbuka di browser.'); return; }
+    if (Notification.permission === 'denied') { toast('Notifikasi diblokir. Izinkan lewat pengaturan situs di browser.', true); return; }
+    Notification.requestPermission().then(function () { syncNotifyBtn(); render(); });
+  }
+
+  // ---------- Kalender ----------
+  function renderCalendar(now) {
+    var tz = -new Date(cal.y, cal.m - 1, 15).getTimezoneOffset();
+    var res = PTMCore.calendar(cal.y, cal.m, tz, now);
+    $('#cal-title').textContent = MONTHS[cal.m - 1] + ' ' + cal.y;
+    var grid = $('#cal-grid');
+    grid.textContent = '';
+    if (!res.ok) { toast(res.error, true); return; }
+    ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].forEach(function (n) { grid.appendChild(el('div', 'cal-dow', n)); });
+    for (var i = 0; i < res.firstWeekday; i++) grid.appendChild(el('div', 'cal-blank'));
+    var info = {};
+    res.days.forEach(function (d) { info[d.day] = d; });
+    var td = new Date(now);
+    for (var d = 1; d <= res.daysInMonth; d++) {
+      (function (d) {
+        var inf = info[d];
+        var isToday = td.getFullYear() === cal.y && td.getMonth() + 1 === cal.m && td.getDate() === d;
+        var b = el('button', 'cal-day' + (inf ? ' has' : '') + (inf && inf.overdue ? ' late' : '') + (isToday ? ' today' : '') + (calSel === d ? ' sel' : ''));
+        b.type = 'button';
+        b.appendChild(el('span', 'cal-num', String(d)));
+        if (inf) b.appendChild(el('span', 'cal-count', String(inf.count)));
+        b.setAttribute('aria-label', d + ' ' + MONTHS[cal.m - 1] + (inf ? ', ' + inf.count + ' tugas' : ''));
+        b.addEventListener('click', function () { calSel = d; render(); });
+        grid.appendChild(b);
+      })(d);
+    }
+    renderCalDay(now);
+  }
+  function renderCalDay(now) {
+    var box = $('#cal-day-list'), title = $('#cal-day-title');
+    box.textContent = '';
+    if (!calSel) { title.textContent = 'Pilih tanggal untuk melihat tugasnya'; return; }
+    var ds = new Date(cal.y, cal.m - 1, calSel, 0, 0, 0, 0).getTime();
+    var de = new Date(cal.y, cal.m - 1, calSel, 23, 59, 59, 999).getTime();
+    var r = PTMCore.query({ status: 'all', priority: 'all', deadline: 'today', search: '', sort: 'deadline', dir: 'asc', dayStart: ds, dayEnd: de }, now);
+    title.textContent = calSel + ' ' + MONTHS[cal.m - 1] + ' ' + cal.y + ' · ' + (r.ok ? r.count : 0) + ' tugas';
+    if (!r.ok) return;
+    r.tasks.forEach(function (t) { box.appendChild(renderTask(t)); });
+    if (!r.count) box.appendChild(el('p', 'empty', 'Tidak ada deadline pada tanggal ini.'));
+  }
+  function setView(v) {
+    view = v;
+    $('#view-list').hidden = v !== 'list';
+    $('#view-cal').hidden = v !== 'cal';
+    $('#v-list').classList.toggle('active', v === 'list');
+    $('#v-cal').classList.toggle('active', v === 'cal');
+    if (v === 'cal') { var n = new Date(); cal = { y: n.getFullYear(), m: n.getMonth() + 1 }; calSel = n.getDate(); }
+    render();
+  }
+  function shiftMonth(delta) {
+    cal.m += delta;
+    if (cal.m < 1) { cal.m = 12; cal.y--; }
+    if (cal.m > 12) { cal.m = 1; cal.y++; }
+    calSel = null;
+    render();
   }
 
   // ---------- Form ----------
@@ -215,6 +335,13 @@
         syncDir(); render();
       });
     });
+    $('#v-list').addEventListener('click', function () { setView('list'); });
+    $('#v-cal').addEventListener('click', function () { setView('cal'); });
+    $('#cal-prev').addEventListener('click', function () { shiftMonth(-1); });
+    $('#cal-next').addEventListener('click', function () { shiftMonth(1); });
+    $('#cal-today').addEventListener('click', function () { var n = new Date(); cal = { y: n.getFullYear(), m: n.getMonth() + 1 }; calSel = n.getDate(); render(); });
+    $('#btn-notify').addEventListener('click', onNotifyClick);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && window.__ptmReady) render(); });
     $('#f-dir').addEventListener('click', function () { filters.dir = filters.dir === 'asc' ? 'desc' : 'asc'; syncDir(); render(); });
   }
   function syncDir() {
@@ -235,6 +362,9 @@
           banner('Data tersimpan tidak dapat dibaca (' + r.error + '). Salinan aslinya disimpan di cadangan LocalStorage; aplikasi dimulai dari daftar kosong.');
         }
       }
+      window.__ptmReady = true;
+      syncNotifyBtn();
+      if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
       render();
       setInterval(render, 60000);  // perbarui penanda "terlambat"
     }).catch(function (e) {

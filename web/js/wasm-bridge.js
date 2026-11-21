@@ -23,6 +23,8 @@
           remove: w('delete', 'string', ['number']),
           query: w('query', 'string', ['string', 'number']),
           stats: w('stats', 'string', ['number']),
+          upcoming: w('upcoming', 'string', ['number', 'number']),
+          calendar: w('calendar', 'string', ['number', 'number', 'number', 'number']),
           state: w('state', 'string', ['number']),
           exportData: w('export', 'string', ['number']),
           importData: w('import', 'string', ['string', 'number', 'number'])
@@ -35,6 +37,8 @@
     remove: function (id) { return call('remove', [id]); },
     query: function (filter, now) { return call('query', [JSON.stringify(filter), now]); },
     stats: function (now) { return call('stats', [now]); },
+    upcoming: function (now, windowMs) { return call('upcoming', [now, windowMs]); },
+    calendar: function (year, month, tzOffsetMin, now) { return call('calendar', [year, month, tzOffsetMin, now]); },
     state: function (now) { return fn.state(now); },            // string JSON untuk LocalStorage
     exportData: function (now) { return fn.exportData(now); },  // string JSON untuk berkas
     importData: function (text, mode, now) { return call('importData', [text, mode, now]); }
